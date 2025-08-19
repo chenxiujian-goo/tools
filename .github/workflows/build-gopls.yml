@@ -1,10 +1,10 @@
 name: Build gopls for Ubuntu 20.04  
-  
+
 on:  
   workflow_dispatch:  # 手动触发  
   push:  
     branches: [ main ]  
-  
+
 jobs:  
   build:  
     runs-on: ubuntu-20.04  # 使用 Ubuntu 20.04  
@@ -12,66 +12,76 @@ jobs:
       matrix:  
         os: [linux]  
         arch: [amd64, arm64]  
-      
+
     steps:  
     - uses: actions/checkout@v4  
-      
+
     - name: Set up Go 1.23.4  
       uses: actions/setup-go@v4  
       with:  
         go-version: '1.23.4'  # 指定 Go 1.23.4 版本  
-      
+
     - name: Verify Go version  
-      run: go version  
-      
+      run: |  
+        echo "验证 Go 版本..."  
+        go version  
+
     - name: Download dependencies  
-      run: go mod download  
+      run: |  
+        echo "开始下载依赖..."  
+        go mod download  
+        echo "依赖下载完成"  
       working-directory: ./gopls  
-      
+
     - name: Build gopls for Ubuntu 20.04  
       run: |  
+        echo "开始构建 gopls..."  
         GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \  
         CGO_ENABLED=0 \  
         go build -ldflags="-s -w" -o gopls-ubuntu20-${{ matrix.arch }} ./gopls  
-      
+        echo "构建完成"  
+
     - name: Create distribution package  
       run: |  
+        echo "开始创建分发包..."  
         mkdir -p dist/gopls-ubuntu20-${{ matrix.arch }}  
         cp gopls-ubuntu20-${{ matrix.arch }} dist/gopls-ubuntu20-${{ matrix.arch }}/gopls  
         chmod +x dist/gopls-ubuntu20-${{ matrix.arch }}/gopls  
-          
+
         # 创建安装脚本  
         cat > dist/gopls-ubuntu20-${{ matrix.arch }}/install.sh << 'EOF'  
         #!/bin/bash  
         set -e  
-          
+
         # 检查 Ubuntu 版本  
         if ! grep -q "Ubuntu 20" /etc/os-release; then  
             echo "警告: 此二进制文件专为 Ubuntu 20.04 构建"  
         fi  
-          
+
         # 安装 gopls  
         sudo cp gopls /usr/local/bin/gopls  
         sudo chmod +x /usr/local/bin/gopls  
-          
+
         echo "gopls 已成功安装到 /usr/local/bin/gopls"  
         echo "版本信息:"  
         /usr/local/bin/gopls version  
         EOF  
-          
+
         chmod +x dist/gopls-ubuntu20-${{ matrix.arch }}/install.sh  
-          
+
         # 创建 tar.gz 包  
         cd dist  
         tar -czf gopls-ubuntu20-${{ matrix.arch }}.tar.gz gopls-ubuntu20-${{ matrix.arch }}/  
-      
+        echo "分发包创建完成"  
+
     - name: Upload artifacts  
       uses: actions/upload-artifact@v3  
       with:  
         name: gopls-ubuntu20-${{ matrix.arch }}  
         path: dist/gopls-ubuntu20-${{ matrix.arch }}.tar.gz  
         retention-days: 30  
-      
+
     - name: Test binary  
       run: |  
-        ./gopls-ubuntu20-${{ matrix.arch }} version || echo "版本检查完成"
+        echo "开始测试二进制文件..."  
+        ./gopls-ubuntu20-${{ matrix.arch }} version || echo "版本检查完成"  
